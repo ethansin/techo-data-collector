@@ -1,4 +1,5 @@
 import os
+import requests
 import time
 from flask import Flask, request, send_from_directory
 import dropbox
@@ -7,8 +8,22 @@ from dotenv import load_dotenv
 load_dotenv()
 app = Flask(__name__)
 
-DROPBOX_TOKEN = os.getenv("DROPBOX_TOKEN")
-dbx = dropbox.Dropbox(DROPBOX_TOKEN)
+def get_access_token():
+    refresh_token = os.getenv("DROPBOX_REFRESH_TOKEN")
+    client_id = os.getenv("DROPBOX_CLIENT_ID")
+    client_secret = os.getenv("DROPBOX_CLIENT_SECRET")
+
+    response = requests.post("https://api.dropbox.com/oauth2/token", data={
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+        "client_id": client_id,
+        "client_secret": client_secret
+    })
+
+    response.raise_for_status()
+    return response.json()["access_token"]
+
+dbx = dropbox.Dropbox(get_access_token())
 
 @app.route("/")
 def index():
