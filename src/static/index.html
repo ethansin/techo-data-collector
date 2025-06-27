@@ -44,7 +44,7 @@
 
       const compressed = await compressImage(file, 1024, 0.7);
 
-      const formData = new FormData(form);
+      const formData = new FormData();
       formData.append('photo', compressed, file.name);
       status.textContent = "Uploading...";
 
