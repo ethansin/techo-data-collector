@@ -8,22 +8,32 @@ from dotenv import load_dotenv
 load_dotenv()
 app = Flask(__name__)
 
-def get_access_token():
-    refresh_token = os.getenv("DROPBOX_REFRESH_TOKEN")
-    client_id = os.getenv("DROPBOX_CLIENT_ID")
-    client_secret = os.getenv("DROPBOX_CLIENT_SECRET")
+class DropboxTokenCache:
+    def __init__(self):
+        self.access_token = None
+        self.expires_at = 0
 
-    response = requests.post("https://api.dropbox.com/oauth2/token", data={
-        "grant_type": "refresh_token",
-        "refresh_token": refresh_token,
-        "client_id": client_id,
-        "client_secret": client_secret
-    })
+    def get_token(self):
+        if time.time() >= self.expires_at:
+            refresh_token = os.getenv("DROPBOX_REFRESH_TOKEN")
+            client_id = os.getenv("DROPBOX_CLIENT_ID")
+            client_secret = os.getenv("DROPBOX_CLIENT_SECRET")
 
-    response.raise_for_status()
-    return response.json()["access_token"]
+            response = requests.post("https://api.dropbox.com/oauth2/token", data={
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "client_id": client_id,
+                "client_secret": client_secret
+            })
+            response.raise_for_status()
+            token_data = response.json()
 
-dbx = dropbox.Dropbox(get_access_token())
+            self.access_token = token_data["access_token"]
+            self.expires_at = time.time() + token_data.get("expires_in", 14400) - 60
+
+        return self.access_token
+
+dropbox_token_cache = DropboxTokenCache()
 
 @app.route("/")
 def index():
@@ -40,6 +50,8 @@ def upload():
     dropbox_path = f"/techo-scanner-data/{filename}"
 
     try:
+        token = DropboxTokenCache.get_token()
+        dbx = dropbox.Dropbox(token)
         dbx.files_upload(photo.read(), dropbox_path)
         return {"message": "Uploaded successfully"}, 200
     except Exception as e:
