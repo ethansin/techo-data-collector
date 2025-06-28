@@ -50,7 +50,7 @@ def upload():
     dropbox_path = f"/techo-scanner-data/{filename}"
 
     try:
-        token = DropboxTokenCache.get_token()
+        token = dropbox_token_cache.get_token()
         dbx = dropbox.Dropbox(token)
         dbx.files_upload(photo.read(), dropbox_path)
         return {"message": "Uploaded successfully"}, 200
